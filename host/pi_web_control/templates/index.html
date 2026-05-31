@@ -6,9 +6,9 @@
   <title>Pico Motor Drive</title>
   <style>
     :root { color-scheme: dark; --bg:#101318; --panel:#1c232b; --btn:#26313b; --btn-active:#34424f; --text:#eef3f5; --muted:#aab8bd; --accent:#31c48d; --danger:#e5484d; --danger-2:#ff6b70; --border:#394651; --track:#121820; }
-    * { box-sizing: border-box; }
-    html { -webkit-text-size-adjust: 100%; }
-    body { margin:0; font-family: Arial, Helvetica, sans-serif; background:var(--bg); color:var(--text); overscroll-behavior:none; }
+    * { box-sizing:border-box; }
+    html { -webkit-text-size-adjust:100%; }
+    body { margin:0; font-family:Arial, Helvetica, sans-serif; background:var(--bg); color:var(--text); overscroll-behavior:none; }
     main { width:min(1000px,100%); margin:0 auto; padding:14px; padding-bottom:calc(18px + env(safe-area-inset-bottom)); }
     h1 { margin:0 0 4px; font-size:26px; line-height:1.1; }
     p { margin:0; color:var(--muted); }
@@ -25,15 +25,15 @@
     select, input[type=text] { min-height:44px; border:1px solid var(--border); border-radius:6px; background:var(--track); color:var(--text); padding:0 10px; min-width:0; }
     .drive-panel { display:grid; gap:12px; }
     .joystick-wrap { display:grid; justify-items:center; gap:10px; }
-    .joystick-zone { position:relative; width:min(72vw, 360px); aspect-ratio:1; border-radius:50%; border:1px solid var(--border); background:radial-gradient(circle at center, #26313b 0 18%, #1a222a 19% 62%, #111820 63% 100%); touch-action:none; user-select:none; -webkit-user-select:none; box-shadow: inset 0 0 0 2px rgba(255,255,255,.02); }
+    .joystick-zone { position:relative; width:min(72vw,360px); aspect-ratio:1; border-radius:50%; border:1px solid var(--border); background:radial-gradient(circle at center,#26313b 0 18%,#1a222a 19% 62%,#111820 63% 100%); touch-action:none; user-select:none; -webkit-user-select:none; box-shadow:inset 0 0 0 2px rgba(255,255,255,.02); }
     .joystick-zone::before, .joystick-zone::after { content:""; position:absolute; background:rgba(238,243,245,.13); pointer-events:none; }
     .joystick-zone::before { left:50%; top:9%; bottom:9%; width:2px; transform:translateX(-50%); }
     .joystick-zone::after { top:50%; left:9%; right:9%; height:2px; transform:translateY(-50%); }
-    .joystick-stick { position:absolute; left:50%; top:50%; width:34%; aspect-ratio:1; border-radius:50%; transform:translate(-50%, -50%); background:linear-gradient(180deg, #41d39d, #239d72); border:2px solid rgba(255,255,255,.28); box-shadow:0 10px 24px rgba(0,0,0,.36); pointer-events:none; }
-    .joystick-zone.is-active .joystick-stick { background:linear-gradient(180deg, #55e0ad, #2ab77f); }
+    .joystick-stick { position:absolute; left:50%; top:50%; width:34%; aspect-ratio:1; border-radius:50%; transform:translate(-50%,-50%); background:linear-gradient(180deg,#41d39d,#239d72); border:2px solid rgba(255,255,255,.28); box-shadow:0 10px 24px rgba(0,0,0,.36); pointer-events:none; }
+    .joystick-zone.is-active .joystick-stick { background:linear-gradient(180deg,#55e0ad,#2ab77f); }
     .stop { background:var(--danger); border-color:var(--danger-2); color:white; font-weight:800; }
     .top-stop { min-width:132px; }
-    .pad-stop { width:min(72vw, 360px); min-height:56px; font-size:18px; letter-spacing:0; }
+    .pad-stop { width:min(72vw,360px); min-height:56px; font-size:18px; }
     .quick-status { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; color:var(--muted); font-size:13px; width:100%; }
     .quick-status strong { display:block; color:var(--text); font-size:17px; margin-top:2px; }
     .sliders button { width:100%; }
@@ -44,7 +44,7 @@
     .meter-header { color:var(--muted); }
     progress { width:100%; height:18px; accent-color:var(--accent); }
     .raw { display:grid; grid-template-columns:1fr auto; gap:8px; }
-    pre { grid-column:1/-1; height:220px; overflow:auto; margin:0; padding:10px; border-radius:6px; background:#0a0d11; white-space:pre-wrap; }
+    pre { grid-column:1/-1; height:150px; overflow:auto; margin:0; padding:10px; border-radius:6px; background:#0a0d11; white-space:pre-wrap; }
     @media (max-width:760px) {
       main { padding:10px; padding-bottom:calc(12px + env(safe-area-inset-bottom)); }
       h1 { font-size:22px; }
@@ -53,73 +53,32 @@
       .grid, .connection, .motors { grid-template-columns:1fr; }
       .connection { align-items:stretch; }
       .drive-panel { padding:10px; }
-      .joystick-zone { width:min(86vw, 350px); }
-      .pad-stop { width:min(86vw, 350px); min-height:58px; }
+      .joystick-zone { width:min(86vw,350px); }
+      .pad-stop { width:min(86vw,350px); min-height:58px; }
       .quick-status { grid-template-columns:repeat(2,1fr); }
       .motors { grid-template-columns:repeat(2,1fr); }
       .motor strong { min-height:auto; }
       .meter-row, .meter-header { grid-template-columns:1fr 1fr; }
       .meter-row span:last-child, .meter-header span:last-child { display:none; }
       .raw { grid-template-columns:1fr; }
-      pre { height:160px; }
+      pre { height:120px; }
     }
   </style>
 </head>
 <body>
   <main>
-    <section class="topbar">
-      <div><h1>Pico Motor Drive</h1><p id="connectionText">Disconnected</p></div>
-      <button class="stop top-stop" id="emergencyStop">STOP</button>
-    </section>
-
-    <section class="panel connection">
-      <label for="portSelect">USB port</label>
-      <select id="portSelect"></select>
-      <button id="refreshPorts">Refresh</button>
-      <button id="connect">Connect</button>
-      <button id="disconnect">Disconnect</button>
-    </section>
-
+    <section class="topbar"><div><h1>Pico Motor Drive</h1><p id="connectionText">Disconnected</p></div><button class="stop top-stop" id="emergencyStop">STOP</button></section>
+    <section class="panel connection"><label for="portSelect">USB port</label><select id="portSelect"></select><button id="refreshPorts">Refresh</button><button id="connect">Connect</button><button id="disconnect">Disconnect</button></section>
     <section class="grid">
       <div class="panel drive-panel">
-        <div class="field">
-          <div class="field-row"><label for="speedLimit">Speed limit</label><strong id="speedLimitValue">0.15</strong></div>
-          <input id="speedLimit" type="range" min="0.03" max="{{ hard_limit }}" step="0.01" value="0.15">
-        </div>
-        <div class="joystick-wrap">
-          <div class="joystick-zone" id="joystick" aria-label="Drive joystick" role="application">
-            <div class="joystick-stick" id="joystickStick"></div>
-          </div>
-          <button class="stop pad-stop" id="padStop">STOP</button>
-        </div>
-        <div class="quick-status">
-          <span>Throttle<strong id="throttleValue">0.00</strong></span>
-          <span>Turn<strong id="turnValue">0.00</strong></span>
-          <span>Left<strong id="leftValue">0.00</strong></span>
-          <span>Right<strong id="rightValue">0.00</strong></span>
-        </div>
+        <div class="field"><div class="field-row"><label for="speedLimit">Speed limit</label><strong id="speedLimitValue">0.15</strong></div><input id="speedLimit" type="range" min="0.03" max="{{ hard_limit }}" step="0.01" value="0.15"></div>
+        <div class="joystick-wrap"><div class="joystick-zone" id="joystick" aria-label="Drive joystick" role="application"><div class="joystick-stick" id="joystickStick"></div></div><button class="stop pad-stop" id="padStop">STOP</button></div>
+        <div class="quick-status"><span>Throttle<strong id="throttleValue">0.00</strong></span><span>Turn<strong id="turnValue">0.00</strong></span><span>Left<strong id="leftValue">0.00</strong></span><span>Right<strong id="rightValue">0.00</strong></span></div>
       </div>
-
-      <div class="panel sliders">
-        <div class="field"><label for="leftSlider">Left trim</label><input id="leftSlider" type="range" min="-1" max="1" step="0.01" value="0"></div>
-        <div class="field"><label for="rightSlider">Right trim</label><input id="rightSlider" type="range" min="-1" max="1" step="0.01" value="0"></div>
-        <button id="applySliders">Apply Sliders</button>
-      </div>
+      <div class="panel sliders"><div class="field"><label for="leftSlider">Left trim</label><input id="leftSlider" type="range" min="-1" max="1" step="0.01" value="0"></div><div class="field"><label for="rightSlider">Right trim</label><input id="rightSlider" type="range" min="-1" max="1" step="0.01" value="0"></div><button id="applySliders">Apply Sliders</button></div>
     </section>
-
-    <section class="panel motors">
-      {% for motor in motors %}
-      <div class="motor"><strong>{{ motor.name }}</strong><button data-motor="{{ loop.index }}" data-direction="1">Fwd</button><button data-motor="{{ loop.index }}" data-direction="-1">Rev</button></div>
-      {% endfor %}
-    </section>
-
-    <section class="panel">
-      <div class="meter-header"><span>Wheel</span><span>Speed pulses/s</span><span>Applied</span></div>
-      {% for motor in motors %}
-      <div class="meter-row"><span>{{ motor.name }}</span><progress id="pulseBar{{ loop.index0 }}" max="50" value="0"></progress><span id="applied{{ loop.index0 }}">0.000</span></div>
-      {% endfor %}
-    </section>
-
+    <section class="panel motors">{% for motor in motors %}<div class="motor"><strong>{{ motor.name }}</strong><button data-motor="{{ loop.index }}" data-direction="1">Fwd</button><button data-motor="{{ loop.index }}" data-direction="-1">Rev</button></div>{% endfor %}</section>
+    <section class="panel"><div class="meter-header"><span>Wheel</span><span>Speed pulses/s</span><span>Applied</span></div>{% for motor in motors %}<div class="meter-row"><span>{{ motor.name }}</span><progress id="pulseBar{{ loop.index0 }}" max="50" value="0"></progress><span id="applied{{ loop.index0 }}">0.000</span></div>{% endfor %}</section>
     <section class="panel raw"><input id="rawCommand" type="text" placeholder="Raw command"><button id="sendRaw">Send Raw</button><pre id="log"></pre></section>
   </main>
 
@@ -127,20 +86,23 @@
     const el = (id) => document.getElementById(id);
     const joystick = el('joystick');
     const joystickStick = el('joystickStick');
-    let holdTimer = null;
-    let holdPayload = null;
-    let activeMotorButton = null;
-    let driveActive = false;
-    let activePointerId = null;
     const deadzone = 0.08;
+    let activePointerId = null;
+    let driveActive = false;
+    let driveHeartbeat = null;
+    let desiredPayload = null;
+    let driveInFlight = false;
+    let driveQueued = false;
+    let activeMotorButton = null;
+    let motorTimer = null;
 
     async function api(path, body, keepalive = false) {
-      const options = body === undefined ? {} : { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body), keepalive };
+      const options = body === undefined ? {} : {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body), keepalive};
       const response = await fetch(path, options);
       if (!response.ok) throw new Error(await response.text());
       return response.json();
     }
-    function sendStopBestEffort() {
+    function postStopBestEffort() {
       const body = JSON.stringify({});
       if (navigator.sendBeacon) {
         try {
@@ -149,6 +111,23 @@
         } catch (_) {}
       }
       fetch('/api/stop', {method:'POST', headers:{'Content-Type':'application/json'}, body, keepalive:true}).catch(() => {});
+    }
+    function postDrive(payload) {
+      desiredPayload = payload;
+      if (driveInFlight) {
+        driveQueued = true;
+        return;
+      }
+      driveInFlight = true;
+      fetch('/api/tank', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({left:payload.left, right:payload.right})})
+        .catch(() => {})
+        .finally(() => {
+          driveInFlight = false;
+          if (driveQueued && desiredPayload && driveActive) {
+            driveQueued = false;
+            postDrive(desiredPayload);
+          }
+        });
     }
     async function refreshPorts() {
       const data = await api('/api/ports');
@@ -164,23 +143,14 @@
       el('speedLimitValue').textContent = Number(state.speedLimit).toFixed(2);
       state.applied.forEach((value, index) => { el(`applied${index}`).textContent = value; });
       state.pulseTotals.forEach((value, index) => { el(`pulseBar${index}`).value = Math.min(value, 50); });
-      el('log').textContent = state.log.join('\n');
+      el('log').textContent = state.log.slice(-35).join('\n');
       el('log').scrollTop = el('log').scrollHeight;
-    }
-    function clearMotorButton() {
-      if (activeMotorButton) activeMotorButton.classList.remove('is-active');
-      activeMotorButton = null;
-    }
-    function setMotorButton(button) {
-      clearMotorButton();
-      activeMotorButton = button;
-      if (activeMotorButton) activeMotorButton.classList.add('is-active');
     }
     function normalizeTank(throttle, turn) {
       let left = throttle + turn;
       let right = throttle - turn;
       const scale = Math.max(1, Math.abs(left), Math.abs(right));
-      return { left:left / scale, right:right / scale, throttle, turn };
+      return {left:left / scale, right:right / scale, throttle, turn};
     }
     function updateDriveReadout(payload) {
       const limit = Number(el('speedLimit').value);
@@ -196,12 +166,24 @@
     function setStick(x, y) {
       joystickStick.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
     }
+    function clearMotorButton() {
+      if (activeMotorButton) activeMotorButton.classList.remove('is-active');
+      activeMotorButton = null;
+    }
+    function setMotorButton(button) {
+      clearMotorButton();
+      activeMotorButton = button;
+      if (activeMotorButton) activeMotorButton.classList.add('is-active');
+    }
     function clearDriveLocal() {
-      clearInterval(holdTimer);
-      holdTimer = null;
-      holdPayload = null;
+      clearInterval(driveHeartbeat);
+      clearInterval(motorTimer);
+      driveHeartbeat = null;
+      motorTimer = null;
       driveActive = false;
       activePointerId = null;
+      desiredPayload = null;
+      driveQueued = false;
       joystick.classList.remove('is-active');
       setStick(0, 0);
       updateDriveReadout(null);
@@ -209,22 +191,18 @@
     }
     async function stop() {
       clearDriveLocal();
-      sendStopBestEffort();
-      try {
-        render(await api('/api/stop', {}, true));
-      } catch (_) {}
+      postStopBestEffort();
+      try { render(await api('/api/stop', {}, true)); } catch (_) {}
     }
-    async function sendTank(payload) {
-      holdPayload = payload;
+    function startDrive(payload) {
+      driveActive = true;
       updateDriveReadout(payload);
-      try {
-        render(await api('/api/tank', {left:payload.left, right:payload.right}));
-      } catch (_) {}
-    }
-    function startTankHold(payload) {
-      holdPayload = payload;
-      sendTank(payload);
-      if (!holdTimer) holdTimer = setInterval(() => holdPayload && sendTank(holdPayload), 100);
+      postDrive(payload);
+      if (!driveHeartbeat) {
+        driveHeartbeat = setInterval(() => {
+          if (driveActive && desiredPayload) postDrive(desiredPayload);
+        }, 90);
+      }
     }
     function joystickPayloadFromEvent(event) {
       const rect = joystick.getBoundingClientRect();
@@ -233,10 +211,7 @@
       let dx = event.clientX - (rect.left + radius);
       let dy = event.clientY - (rect.top + radius);
       const distance = Math.hypot(dx, dy);
-      if (distance > max) {
-        dx = dx / distance * max;
-        dy = dy / distance * max;
-      }
+      if (distance > max) { dx = dx / distance * max; dy = dy / distance * max; }
       const x = dx / max;
       const y = dy / max;
       const turn = Math.abs(x) < deadzone ? 0 : x;
@@ -247,23 +222,26 @@
     joystick.addEventListener('pointerdown', (event) => {
       event.preventDefault();
       activePointerId = event.pointerId;
-      driveActive = true;
       joystick.setPointerCapture?.(event.pointerId);
       joystick.classList.add('is-active');
-      startTankHold(joystickPayloadFromEvent(event));
+      startDrive(joystickPayloadFromEvent(event));
     });
     joystick.addEventListener('pointermove', (event) => {
       if (!driveActive || event.pointerId !== activePointerId) return;
       event.preventDefault();
-      startTankHold(joystickPayloadFromEvent(event));
+      startDrive(joystickPayloadFromEvent(event));
     });
-    joystick.addEventListener('pointerup', (event) => { event.preventDefault(); stop(); });
-    joystick.addEventListener('pointercancel', (event) => { event.preventDefault(); stop(); });
-    joystick.addEventListener('lostpointercapture', () => { if (driveActive) stop(); });
+    ['pointerup','pointercancel','lostpointercapture'].forEach((name) => joystick.addEventListener(name, (event) => { event?.preventDefault?.(); if (driveActive) stop(); }));
 
     document.querySelectorAll('.motor button').forEach((button) => {
-      const payload = { motor:Number(button.dataset.motor), direction:Number(button.dataset.direction) };
-      button.addEventListener('pointerdown', async (event) => { event.preventDefault(); clearDriveLocal(); setMotorButton(button); render(await api('/api/motor', payload)); holdTimer = setInterval(() => api('/api/motor', payload).catch(() => {}), 100); });
+      const payload = {motor:Number(button.dataset.motor), direction:Number(button.dataset.direction)};
+      button.addEventListener('pointerdown', async (event) => {
+        event.preventDefault();
+        clearDriveLocal();
+        setMotorButton(button);
+        try { await api('/api/motor', payload); } catch (_) {}
+        motorTimer = setInterval(() => api('/api/motor', payload).catch(() => {}), 120);
+      });
       button.addEventListener('pointerup', (event) => { event.preventDefault(); stop(); });
       button.addEventListener('pointercancel', (event) => { event.preventDefault(); stop(); });
     });
@@ -272,26 +250,26 @@
     el('disconnect').onclick = async () => render(await api('/api/disconnect', {}));
     el('emergencyStop').onclick = stop;
     el('padStop').onclick = stop;
-    el('speedLimit').oninput = async () => { el('speedLimitValue').textContent = Number(el('speedLimit').value).toFixed(2); updateDriveReadout(holdPayload); render(await api('/api/speed-limit', {value:Number(el('speedLimit').value)})); };
+    el('speedLimit').oninput = async () => { el('speedLimitValue').textContent = Number(el('speedLimit').value).toFixed(2); updateDriveReadout(desiredPayload); render(await api('/api/speed-limit', {value:Number(el('speedLimit').value)})); };
     el('applySliders').onclick = async () => render(await api('/api/tank', {left:Number(el('leftSlider').value), right:Number(el('rightSlider').value)}));
     el('sendRaw').onclick = async () => { const command = el('rawCommand').value.trim(); if (command) render(await api('/api/raw', {command})); };
-    document.addEventListener('pointerup', () => { if (driveActive || holdTimer) stop(); }, true);
-    document.addEventListener('pointercancel', () => { if (driveActive || holdTimer) stop(); }, true);
-    document.addEventListener('touchend', () => { if (driveActive || holdTimer) stop(); }, {capture:true, passive:true});
-    document.addEventListener('touchcancel', () => { if (driveActive || holdTimer) stop(); }, {capture:true, passive:true});
-    document.addEventListener('mouseup', () => { if (driveActive || holdTimer) stop(); }, true);
+    document.addEventListener('pointerup', () => { if (driveActive || motorTimer) stop(); }, true);
+    document.addEventListener('pointercancel', () => { if (driveActive || motorTimer) stop(); }, true);
+    document.addEventListener('touchend', () => { if (driveActive || motorTimer) stop(); }, {capture:true, passive:true});
+    document.addEventListener('touchcancel', () => { if (driveActive || motorTimer) stop(); }, {capture:true, passive:true});
+    document.addEventListener('mouseup', () => { if (driveActive || motorTimer) stop(); }, true);
     document.addEventListener('keyup', (event) => { if (['w','s','a','d','ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','Escape'].includes(event.key)) stop(); });
     document.addEventListener('keydown', (event) => {
       if (event.repeat) return;
-      const map = { w:[1,1], ArrowUp:[1,1], s:[-1,-1], ArrowDown:[-1,-1], a:[-0.5,0.5], ArrowLeft:[-0.5,0.5], d:[0.5,-0.5], ArrowRight:[0.5,-0.5] };
+      const map = {w:[1,1], ArrowUp:[1,1], s:[-1,-1], ArrowDown:[-1,-1], a:[-0.5,0.5], ArrowLeft:[-0.5,0.5], d:[0.5,-0.5], ArrowRight:[0.5,-0.5]};
       if (event.key === ' ' || event.key === 'Escape') { event.preventDefault(); stop(); }
-      if (map[event.key]) { event.preventDefault(); driveActive = true; startTankHold(normalizeTank(map[event.key][0], map[event.key][1])); }
+      if (map[event.key]) { event.preventDefault(); startDrive(normalizeTank(map[event.key][0], map[event.key][1])); }
     });
-    window.addEventListener('blur', () => { if (driveActive || holdTimer) stop(); });
-    window.addEventListener('pagehide', () => { clearDriveLocal(); sendStopBestEffort(); });
-    document.addEventListener('visibilitychange', () => { if (document.hidden) { clearDriveLocal(); sendStopBestEffort(); } });
+    window.addEventListener('blur', () => { if (driveActive || motorTimer) stop(); });
+    window.addEventListener('pagehide', () => { clearDriveLocal(); postStopBestEffort(); });
+    document.addEventListener('visibilitychange', () => { if (document.hidden) { clearDriveLocal(); postStopBestEffort(); } });
     async function poll() { try { render(await api('/api/state')); } catch (_) { el('connectionText').textContent = 'Web app offline'; } }
-    refreshPorts(); poll(); setInterval(poll, 500);
+    refreshPorts(); poll(); setInterval(poll, 1000);
   </script>
 </body>
 </html>
