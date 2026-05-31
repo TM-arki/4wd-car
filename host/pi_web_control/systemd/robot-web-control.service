@@ -1,7 +1,7 @@
 [Unit]
 Description=4WD robot web control
-After=network-online.target
-Wants=network-online.target
+After=robot-boot-update.service
+Wants=robot-boot-update.service
 
 [Service]
 Type=simple
