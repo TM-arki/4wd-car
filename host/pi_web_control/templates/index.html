@@ -130,13 +130,25 @@
     let holdTimer = null;
     let holdPayload = null;
     let activeMotorButton = null;
+    let driveActive = false;
+    let activePointerId = null;
     const deadzone = 0.08;
 
-    async function api(path, body) {
-      const options = body === undefined ? {} : { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) };
+    async function api(path, body, keepalive = false) {
+      const options = body === undefined ? {} : { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body), keepalive };
       const response = await fetch(path, options);
       if (!response.ok) throw new Error(await response.text());
       return response.json();
+    }
+    function sendStopBestEffort() {
+      const body = JSON.stringify({});
+      if (navigator.sendBeacon) {
+        try {
+          const blob = new Blob([body], {type:'application/json'});
+          if (navigator.sendBeacon('/api/stop', blob)) return;
+        } catch (_) {}
+      }
+      fetch('/api/stop', {method:'POST', headers:{'Content-Type':'application/json'}, body, keepalive:true}).catch(() => {});
     }
     async function refreshPorts() {
       const data = await api('/api/ports');
@@ -184,20 +196,30 @@
     function setStick(x, y) {
       joystickStick.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
     }
-    async function stop() {
+    function clearDriveLocal() {
       clearInterval(holdTimer);
       holdTimer = null;
       holdPayload = null;
+      driveActive = false;
+      activePointerId = null;
       joystick.classList.remove('is-active');
       setStick(0, 0);
       updateDriveReadout(null);
       clearMotorButton();
-      render(await api('/api/stop', {}));
+    }
+    async function stop() {
+      clearDriveLocal();
+      sendStopBestEffort();
+      try {
+        render(await api('/api/stop', {}, true));
+      } catch (_) {}
     }
     async function sendTank(payload) {
       holdPayload = payload;
       updateDriveReadout(payload);
-      render(await api('/api/tank', {left:payload.left, right:payload.right}));
+      try {
+        render(await api('/api/tank', {left:payload.left, right:payload.right}));
+      } catch (_) {}
     }
     function startTankHold(payload) {
       holdPayload = payload;
@@ -224,21 +246,24 @@
     }
     joystick.addEventListener('pointerdown', (event) => {
       event.preventDefault();
+      activePointerId = event.pointerId;
+      driveActive = true;
       joystick.setPointerCapture?.(event.pointerId);
       joystick.classList.add('is-active');
       startTankHold(joystickPayloadFromEvent(event));
     });
     joystick.addEventListener('pointermove', (event) => {
-      if (!joystick.classList.contains('is-active')) return;
+      if (!driveActive || event.pointerId !== activePointerId) return;
       event.preventDefault();
       startTankHold(joystickPayloadFromEvent(event));
     });
     joystick.addEventListener('pointerup', (event) => { event.preventDefault(); stop(); });
     joystick.addEventListener('pointercancel', (event) => { event.preventDefault(); stop(); });
+    joystick.addEventListener('lostpointercapture', () => { if (driveActive) stop(); });
 
     document.querySelectorAll('.motor button').forEach((button) => {
       const payload = { motor:Number(button.dataset.motor), direction:Number(button.dataset.direction) };
-      button.addEventListener('pointerdown', async (event) => { event.preventDefault(); clearInterval(holdTimer); setMotorButton(button); render(await api('/api/motor', payload)); holdTimer = setInterval(() => api('/api/motor', payload), 100); });
+      button.addEventListener('pointerdown', async (event) => { event.preventDefault(); clearDriveLocal(); setMotorButton(button); render(await api('/api/motor', payload)); holdTimer = setInterval(() => api('/api/motor', payload).catch(() => {}), 100); });
       button.addEventListener('pointerup', (event) => { event.preventDefault(); stop(); });
       button.addEventListener('pointercancel', (event) => { event.preventDefault(); stop(); });
     });
@@ -250,14 +275,21 @@
     el('speedLimit').oninput = async () => { el('speedLimitValue').textContent = Number(el('speedLimit').value).toFixed(2); updateDriveReadout(holdPayload); render(await api('/api/speed-limit', {value:Number(el('speedLimit').value)})); };
     el('applySliders').onclick = async () => render(await api('/api/tank', {left:Number(el('leftSlider').value), right:Number(el('rightSlider').value)}));
     el('sendRaw').onclick = async () => { const command = el('rawCommand').value.trim(); if (command) render(await api('/api/raw', {command})); };
+    document.addEventListener('pointerup', () => { if (driveActive || holdTimer) stop(); }, true);
+    document.addEventListener('pointercancel', () => { if (driveActive || holdTimer) stop(); }, true);
+    document.addEventListener('touchend', () => { if (driveActive || holdTimer) stop(); }, {capture:true, passive:true});
+    document.addEventListener('touchcancel', () => { if (driveActive || holdTimer) stop(); }, {capture:true, passive:true});
+    document.addEventListener('mouseup', () => { if (driveActive || holdTimer) stop(); }, true);
     document.addEventListener('keyup', (event) => { if (['w','s','a','d','ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','Escape'].includes(event.key)) stop(); });
     document.addEventListener('keydown', (event) => {
       if (event.repeat) return;
       const map = { w:[1,1], ArrowUp:[1,1], s:[-1,-1], ArrowDown:[-1,-1], a:[-0.5,0.5], ArrowLeft:[-0.5,0.5], d:[0.5,-0.5], ArrowRight:[0.5,-0.5] };
       if (event.key === ' ' || event.key === 'Escape') { event.preventDefault(); stop(); }
-      if (map[event.key]) { event.preventDefault(); startTankHold(normalizeTank(map[event.key][0], map[event.key][1])); }
+      if (map[event.key]) { event.preventDefault(); driveActive = true; startTankHold(normalizeTank(map[event.key][0], map[event.key][1])); }
     });
-    window.addEventListener('blur', () => { if (holdTimer) stop(); });
+    window.addEventListener('blur', () => { if (driveActive || holdTimer) stop(); });
+    window.addEventListener('pagehide', () => { clearDriveLocal(); sendStopBestEffort(); });
+    document.addEventListener('visibilitychange', () => { if (document.hidden) { clearDriveLocal(); sendStopBestEffort(); } });
     async function poll() { try { render(await api('/api/state')); } catch (_) { el('connectionText').textContent = 'Web app offline'; } }
     refreshPorts(); poll(); setInterval(poll, 500);
   </script>
