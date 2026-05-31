@@ -14,6 +14,8 @@ DEFAULT_PORT = "/dev/ttyACM0"
 DEFAULT_SPEED_LIMIT = 0.15
 HARD_SPEED_LIMIT = 0.30
 READ_DRAIN_SECONDS = 0.03
+DRIVE_SEND_SECONDS = 0.10
+DRIVE_LEASE_SECONDS = 0.30
 
 MOTOR_DRIVE_MAP = [
     {"name": "M1 right rear", "side": "right"},
@@ -144,10 +146,64 @@ def build_drive_command(left: float, right: float, limit: float) -> str:
     return "DRIVE {:.3f} {:.3f} {:.3f} {:.3f}".format(*powers)
 
 
+class DriveWatchdog:
+    def __init__(self, pico: PicoSerial, state: RobotState) -> None:
+        self.pico = pico
+        self.state = state
+        self.lock = threading.Lock()
+        self.left = 0.0
+        self.right = 0.0
+        self.active = False
+        self.stop_sent = True
+        self.last_update = 0.0
+        self.thread = threading.Thread(target=self._loop, daemon=True)
+        self.thread.start()
+
+    def update(self, left: float, right: float) -> None:
+        with self.lock:
+            self.left = clamp(left, -1.0, 1.0)
+            self.right = clamp(right, -1.0, 1.0)
+            self.active = True
+            self.stop_sent = False
+            self.last_update = time.monotonic()
+
+    def stop(self) -> None:
+        with self.lock:
+            self.left = 0.0
+            self.right = 0.0
+            self.active = False
+            self.stop_sent = True
+            self.last_update = 0.0
+        for _ in range(4):
+            self.pico.send("STOP")
+
+    def _loop(self) -> None:
+        while True:
+            time.sleep(DRIVE_SEND_SECONDS)
+            with self.lock:
+                left = self.left
+                right = self.right
+                active = self.active
+                stale = active and time.monotonic() - self.last_update > DRIVE_LEASE_SECONDS
+                stop_needed = stale and not self.stop_sent
+                if stale:
+                    self.active = False
+                    self.left = 0.0
+                    self.right = 0.0
+                    self.stop_sent = True
+            if stop_needed:
+                for _ in range(4):
+                    self.pico.send("STOP")
+                continue
+            if active and not stale:
+                self.pico.send(build_drive_command(left, right, self.state.speed_limit))
+
+
 def create_app(default_port: str, autoconnect: bool) -> Flask:
     app = Flask(__name__)
     state = RobotState(port=default_port)
     pico = PicoSerial(state)
+    drive = DriveWatchdog(pico, state)
 
     if autoconnect:
         try:
@@ -174,11 +230,13 @@ def create_app(default_port: str, autoconnect: bool) -> Flask:
 
     @app.post("/api/connect")
     def api_connect():
+        drive.stop()
         pico.connect(request.json.get("port", default_port))
         return jsonify(pico.snapshot())
 
     @app.post("/api/disconnect")
     def api_disconnect():
+        drive.stop()
         pico.disconnect()
         return jsonify(pico.snapshot())
 
@@ -189,12 +247,12 @@ def create_app(default_port: str, autoconnect: bool) -> Flask:
 
     @app.post("/api/tank")
     def api_tank():
-        command = build_drive_command(float(request.json.get("left", 0.0)), float(request.json.get("right", 0.0)), state.speed_limit)
-        pico.send(command)
+        drive.update(float(request.json.get("left", 0.0)), float(request.json.get("right", 0.0)))
         return jsonify(pico.snapshot())
 
     @app.post("/api/motor")
     def api_motor():
+        drive.stop()
         motor = max(1, min(4, int(request.json.get("motor", 1))))
         direction = clamp(float(request.json.get("direction", 0.0)), -1.0, 1.0)
         pico.send(f"MOTOR {motor} {direction * state.speed_limit:.3f}")
@@ -202,12 +260,12 @@ def create_app(default_port: str, autoconnect: bool) -> Flask:
 
     @app.post("/api/stop")
     def api_stop():
-        for _ in range(4):
-            pico.send("STOP")
+        drive.stop()
         return jsonify(pico.snapshot())
 
     @app.post("/api/raw")
     def api_raw():
+        drive.stop()
         pico.send(str(request.json.get("command", "")))
         return jsonify(pico.snapshot())
 
