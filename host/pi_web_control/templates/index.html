@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pico Motor Drive</title>
+  <style>
+    :root { color-scheme: dark; --bg:#101318; --panel:#1c232b; --btn:#26313b; --text:#eef3f5; --muted:#aab8bd; --accent:#31c48d; --danger:#e5484d; --border:#394651; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: Arial, Helvetica, sans-serif; background:var(--bg); color:var(--text); }
+    main { width:min(1000px,100%); margin:0 auto; padding:16px; }
+    h1 { margin:0 0 4px; font-size:28px; }
+    p { margin:0; color:var(--muted); }
+    button, input, select { font:inherit; }
+    button { min-height:44px; border:1px solid var(--border); border-radius:6px; background:var(--btn); color:var(--text); cursor:pointer; }
+    button:active { transform:translateY(1px); }
+    .topbar { display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom:12px; }
+    .panel { border:1px solid var(--border); border-radius:8px; background:var(--panel); padding:12px; margin-bottom:12px; }
+    .connection { display:grid; grid-template-columns:auto minmax(180px,1fr) repeat(3,auto); gap:8px; align-items:center; }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .field { display:grid; gap:8px; margin-bottom:14px; }
+    input[type=range] { width:100%; accent-color:var(--accent); }
+    select, input[type=text] { min-height:44px; border:1px solid var(--border); border-radius:6px; background:#121820; color:var(--text); padding:0 10px; }
+    .pad { display:grid; grid-template-columns:repeat(3,minmax(72px,1fr)); gap:8px; max-width:420px; margin:0 auto; }
+    .pad button:first-child, .pad button:last-child { grid-column:2; }
+    .stop { min-width:140px; background:var(--danger); border-color:#ff767a; color:white; font-weight:700; }
+    .motors { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+    .motor { display:grid; gap:8px; }
+    .meter-row, .meter-header { display:grid; grid-template-columns:minmax(140px,1.2fr) minmax(120px,2fr) 80px; gap:8px; align-items:center; margin:6px 0; }
+    .meter-header { color:var(--muted); }
+    progress { width:100%; height:18px; accent-color:var(--accent); }
+    .raw { display:grid; grid-template-columns:1fr auto; gap:8px; }
+    pre { grid-column:1/-1; height:220px; overflow:auto; margin:0; padding:10px; border-radius:6px; background:#0a0d11; white-space:pre-wrap; }
+    @media (max-width:760px) { .topbar { display:grid; } .grid, .connection, .motors { grid-template-columns:1fr; } .meter-row, .meter-header { grid-template-columns:1fr 1fr; } }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="topbar">
+      <div><h1>Pico Motor Drive</h1><p id="connectionText">Disconnected</p></div>
+      <button class="stop" id="emergencyStop">STOP</button>
+    </section>
+
+    <section class="panel connection">
+      <label for="portSelect">USB port</label>
+      <select id="portSelect"></select>
+      <button id="refreshPorts">Refresh</button>
+      <button id="connect">Connect</button>
+      <button id="disconnect">Disconnect</button>
+    </section>
+
+    <section class="grid">
+      <div class="panel">
+        <div class="field">
+          <label for="speedLimit">Speed limit <span id="speedLimitValue">0.15</span></label>
+          <input id="speedLimit" type="range" min="0.03" max="{{ hard_limit }}" step="0.01" value="0.15">
+        </div>
+        <div class="pad">
+          <button data-left="1" data-right="1">Forward</button>
+          <button data-left="-0.5" data-right="0.5">Left</button>
+          <button class="stop" id="padStop">STOP</button>
+          <button data-left="0.5" data-right="-0.5">Right</button>
+          <button data-left="-1" data-right="-1">Reverse</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="field"><label for="leftSlider">Left</label><input id="leftSlider" type="range" min="-1" max="1" step="0.01" value="0"></div>
+        <div class="field"><label for="rightSlider">Right</label><input id="rightSlider" type="range" min="-1" max="1" step="0.01" value="0"></div>
+        <button id="applySliders">Apply Sliders</button>
+      </div>
+    </section>
+
+    <section class="panel motors">
+      {% for motor in motors %}
+      <div class="motor"><strong>{{ motor.name }}</strong><button data-motor="{{ loop.index }}" data-direction="1">Fwd</button><button data-motor="{{ loop.index }}" data-direction="-1">Rev</button></div>
+      {% endfor %}
+    </section>
+
+    <section class="panel">
+      <div class="meter-header"><span>Wheel</span><span>Speed pulses/s</span><span>Applied</span></div>
+      {% for motor in motors %}
+      <div class="meter-row"><span>{{ motor.name }}</span><progress id="pulseBar{{ loop.index0 }}" max="50" value="0"></progress><span id="applied{{ loop.index0 }}">0.000</span></div>
+      {% endfor %}
+    </section>
+
+    <section class="panel raw"><input id="rawCommand" type="text" placeholder="Raw command"><button id="sendRaw">Send Raw</button><pre id="log"></pre></section>
+  </main>
+
+  <script>
+    const el = (id) => document.getElementById(id);
+    let holdTimer = null;
+    let holdPayload = null;
+    async function api(path, body) {
+      const options = body === undefined ? {} : { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) };
+      const response = await fetch(path, options);
+      if (!response.ok) throw new Error(await response.text());
+      return response.json();
+    }
+    async function refreshPorts() {
+      const data = await api('/api/ports');
+      const select = el('portSelect');
+      const current = select.value;
+      select.innerHTML = '';
+      data.ports.forEach((port) => { const option = document.createElement('option'); option.value = port; option.textContent = port; select.appendChild(option); });
+      if (current) select.value = current;
+    }
+    function render(state) {
+      el('connectionText').textContent = state.connected ? `Connected to ${state.port}` : 'Disconnected';
+      el('speedLimit').value = Number(state.speedLimit).toFixed(2);
+      el('speedLimitValue').textContent = Number(state.speedLimit).toFixed(2);
+      state.applied.forEach((value, index) => { el(`applied${index}`).textContent = value; });
+      state.pulseTotals.forEach((value, index) => { el(`pulseBar${index}`).value = Math.min(value, 50); });
+      el('log').textContent = state.log.join('\n');
+      el('log').scrollTop = el('log').scrollHeight;
+    }
+    async function stop() { clearInterval(holdTimer); holdTimer = null; holdPayload = null; render(await api('/api/stop', {})); }
+    async function sendTank(payload) { holdPayload = payload; render(await api('/api/tank', payload)); }
+    function startHold(payload) { sendTank(payload); holdTimer = setInterval(() => sendTank(holdPayload), 100); }
+    document.querySelectorAll('.pad button[data-left]').forEach((button) => {
+      const payload = { left:Number(button.dataset.left), right:Number(button.dataset.right) };
+      button.addEventListener('pointerdown', (event) => { event.preventDefault(); startHold(payload); });
+      button.addEventListener('pointerup', stop);
+      button.addEventListener('pointerleave', stop);
+      button.addEventListener('pointercancel', stop);
+    });
+    document.querySelectorAll('.motor button').forEach((button) => {
+      const payload = { motor:Number(button.dataset.motor), direction:Number(button.dataset.direction) };
+      button.addEventListener('pointerdown', async (event) => { event.preventDefault(); render(await api('/api/motor', payload)); holdTimer = setInterval(() => api('/api/motor', payload), 100); });
+      button.addEventListener('pointerup', stop);
+      button.addEventListener('pointerleave', stop);
+      button.addEventListener('pointercancel', stop);
+    });
+    el('refreshPorts').onclick = refreshPorts;
+    el('connect').onclick = async () => render(await api('/api/connect', {port: el('portSelect').value}));
+    el('disconnect').onclick = async () => render(await api('/api/disconnect', {}));
+    el('emergencyStop').onclick = stop;
+    el('padStop').onclick = stop;
+    el('speedLimit').oninput = async () => { el('speedLimitValue').textContent = Number(el('speedLimit').value).toFixed(2); render(await api('/api/speed-limit', {value:Number(el('speedLimit').value)})); };
+    el('applySliders').onclick = async () => render(await api('/api/tank', {left:Number(el('leftSlider').value), right:Number(el('rightSlider').value)}));
+    el('sendRaw').onclick = async () => { const command = el('rawCommand').value.trim(); if (command) render(await api('/api/raw', {command})); };
+    document.addEventListener('keyup', (event) => { if (['w','s','a','d','ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','Escape'].includes(event.key)) stop(); });
+    document.addEventListener('keydown', (event) => {
+      if (event.repeat) return;
+      const map = { w:[1,1], ArrowUp:[1,1], s:[-1,-1], ArrowDown:[-1,-1], a:[-0.5,0.5], ArrowLeft:[-0.5,0.5], d:[0.5,-0.5], ArrowRight:[0.5,-0.5] };
+      if (event.key === ' ' || event.key === 'Escape') { event.preventDefault(); stop(); }
+      if (map[event.key]) { event.preventDefault(); startHold({left:map[event.key][0], right:map[event.key][1]}); }
+    });
+    async function poll() { try { render(await api('/api/state')); } catch (_) { el('connectionText').textContent = 'Web app offline'; } }
+    refreshPorts(); poll(); setInterval(poll, 500);
+  </script>
+</body>
+</html>
