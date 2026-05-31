@@ -2,43 +2,74 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Pico Motor Drive</title>
   <style>
-    :root { color-scheme: dark; --bg:#101318; --panel:#1c232b; --btn:#26313b; --text:#eef3f5; --muted:#aab8bd; --accent:#31c48d; --danger:#e5484d; --border:#394651; }
+    :root { color-scheme: dark; --bg:#101318; --panel:#1c232b; --btn:#26313b; --btn-active:#34424f; --text:#eef3f5; --muted:#aab8bd; --accent:#31c48d; --danger:#e5484d; --danger-2:#ff6b70; --border:#394651; }
     * { box-sizing: border-box; }
-    body { margin:0; font-family: Arial, Helvetica, sans-serif; background:var(--bg); color:var(--text); }
-    main { width:min(1000px,100%); margin:0 auto; padding:16px; }
-    h1 { margin:0 0 4px; font-size:28px; }
+    html { -webkit-text-size-adjust: 100%; }
+    body { margin:0; font-family: Arial, Helvetica, sans-serif; background:var(--bg); color:var(--text); overscroll-behavior:none; }
+    main { width:min(1000px,100%); margin:0 auto; padding:14px; padding-bottom:calc(18px + env(safe-area-inset-bottom)); }
+    h1 { margin:0 0 4px; font-size:26px; line-height:1.1; }
     p { margin:0; color:var(--muted); }
     button, input, select { font:inherit; }
-    button { min-height:44px; border:1px solid var(--border); border-radius:6px; background:var(--btn); color:var(--text); cursor:pointer; }
-    button:active { transform:translateY(1px); }
+    button { min-height:46px; border:1px solid var(--border); border-radius:7px; background:var(--btn); color:var(--text); cursor:pointer; touch-action:manipulation; user-select:none; -webkit-user-select:none; }
+    button:active, button.is-active { background:var(--btn-active); transform:translateY(1px); }
     .topbar { display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom:12px; }
     .panel { border:1px solid var(--border); border-radius:8px; background:var(--panel); padding:12px; margin-bottom:12px; }
     .connection { display:grid; grid-template-columns:auto minmax(180px,1fr) repeat(3,auto); gap:8px; align-items:center; }
-    .grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .grid { display:grid; grid-template-columns:1.15fr .85fr; gap:12px; align-items:start; }
     .field { display:grid; gap:8px; margin-bottom:14px; }
+    .field-row { display:flex; justify-content:space-between; gap:10px; align-items:center; }
     input[type=range] { width:100%; accent-color:var(--accent); }
-    select, input[type=text] { min-height:44px; border:1px solid var(--border); border-radius:6px; background:#121820; color:var(--text); padding:0 10px; }
-    .pad { display:grid; grid-template-columns:repeat(3,minmax(72px,1fr)); gap:8px; max-width:420px; margin:0 auto; }
-    .pad button:first-child, .pad button:last-child { grid-column:2; }
-    .stop { min-width:140px; background:var(--danger); border-color:#ff767a; color:white; font-weight:700; }
+    select, input[type=text] { min-height:44px; border:1px solid var(--border); border-radius:6px; background:#121820; color:var(--text); padding:0 10px; min-width:0; }
+    .drive-panel { display:grid; gap:12px; }
+    .drive-pad { display:grid; grid-template-columns:repeat(3,minmax(74px,1fr)); grid-template-rows:repeat(3,minmax(72px,1fr)); gap:10px; max-width:430px; margin:0 auto; touch-action:none; }
+    .drive-btn { min-height:72px; font-size:34px; font-weight:800; line-height:1; display:flex; align-items:center; justify-content:center; }
+    .drive-btn.up { grid-column:2; grid-row:1; }
+    .drive-btn.left { grid-column:1; grid-row:2; }
+    .drive-btn.right { grid-column:3; grid-row:2; }
+    .drive-btn.down { grid-column:2; grid-row:3; }
+    .stop { background:var(--danger); border-color:var(--danger-2); color:white; font-weight:800; }
+    .top-stop { min-width:132px; }
+    .pad-stop { grid-column:2; grid-row:2; min-width:0; font-size:18px; letter-spacing:0; }
+    .quick-status { display:grid; grid-template-columns:1fr 1fr; gap:8px; color:var(--muted); font-size:14px; }
+    .quick-status strong { display:block; color:var(--text); font-size:18px; margin-top:2px; }
+    .sliders button { width:100%; }
     .motors { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
     .motor { display:grid; gap:8px; }
+    .motor strong { color:var(--muted); min-height:34px; }
     .meter-row, .meter-header { display:grid; grid-template-columns:minmax(140px,1.2fr) minmax(120px,2fr) 80px; gap:8px; align-items:center; margin:6px 0; }
     .meter-header { color:var(--muted); }
     progress { width:100%; height:18px; accent-color:var(--accent); }
     .raw { display:grid; grid-template-columns:1fr auto; gap:8px; }
     pre { grid-column:1/-1; height:220px; overflow:auto; margin:0; padding:10px; border-radius:6px; background:#0a0d11; white-space:pre-wrap; }
-    @media (max-width:760px) { .topbar { display:grid; } .grid, .connection, .motors { grid-template-columns:1fr; } .meter-row, .meter-header { grid-template-columns:1fr 1fr; } }
+    @media (max-width:760px) {
+      main { padding:10px; padding-bottom:calc(12px + env(safe-area-inset-bottom)); }
+      h1 { font-size:22px; }
+      .topbar { position:sticky; top:0; z-index:5; display:grid; grid-template-columns:1fr auto; background:rgba(16,19,24,.94); padding:8px 0 10px; margin-bottom:8px; backdrop-filter:blur(8px); }
+      .top-stop { min-width:104px; min-height:54px; }
+      .grid, .connection, .motors { grid-template-columns:1fr; }
+      .connection { align-items:stretch; }
+      .drive-panel { padding:10px; }
+      .drive-pad { width:min(100%, 360px); grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(3,82px); gap:9px; }
+      .drive-btn { min-height:82px; font-size:38px; border-radius:10px; }
+      .pad-stop { font-size:17px; }
+      .quick-status { grid-template-columns:1fr 1fr; }
+      .motors { grid-template-columns:repeat(2,1fr); }
+      .motor strong { min-height:auto; }
+      .meter-row, .meter-header { grid-template-columns:1fr 1fr; }
+      .meter-row span:last-child, .meter-header span:last-child { display:none; }
+      .raw { grid-template-columns:1fr; }
+      pre { height:160px; }
+    }
   </style>
 </head>
 <body>
   <main>
     <section class="topbar">
       <div><h1>Pico Motor Drive</h1><p id="connectionText">Disconnected</p></div>
-      <button class="stop" id="emergencyStop">STOP</button>
+      <button class="stop top-stop" id="emergencyStop">STOP</button>
     </section>
 
     <section class="panel connection">
@@ -50,23 +81,27 @@
     </section>
 
     <section class="grid">
-      <div class="panel">
+      <div class="panel drive-panel">
         <div class="field">
-          <label for="speedLimit">Speed limit <span id="speedLimitValue">0.15</span></label>
+          <div class="field-row"><label for="speedLimit">Speed limit</label><strong id="speedLimitValue">0.15</strong></div>
           <input id="speedLimit" type="range" min="0.03" max="{{ hard_limit }}" step="0.01" value="0.15">
         </div>
-        <div class="pad">
-          <button data-left="1" data-right="1">Forward</button>
-          <button data-left="-0.5" data-right="0.5">Left</button>
-          <button class="stop" id="padStop">STOP</button>
-          <button data-left="0.5" data-right="-0.5">Right</button>
-          <button data-left="-1" data-right="-1">Reverse</button>
+        <div class="drive-pad" aria-label="Drive controls">
+          <button class="drive-btn up" data-left="1" data-right="1" aria-label="Forward">▲</button>
+          <button class="drive-btn left" data-left="-0.5" data-right="0.5" aria-label="Left">◀</button>
+          <button class="stop pad-stop" id="padStop">STOP</button>
+          <button class="drive-btn right" data-left="0.5" data-right="-0.5" aria-label="Right">▶</button>
+          <button class="drive-btn down" data-left="-1" data-right="-1" aria-label="Reverse">▼</button>
+        </div>
+        <div class="quick-status">
+          <span>Left<strong id="leftValue">0.00</strong></span>
+          <span>Right<strong id="rightValue">0.00</strong></span>
         </div>
       </div>
 
-      <div class="panel">
-        <div class="field"><label for="leftSlider">Left</label><input id="leftSlider" type="range" min="-1" max="1" step="0.01" value="0"></div>
-        <div class="field"><label for="rightSlider">Right</label><input id="rightSlider" type="range" min="-1" max="1" step="0.01" value="0"></div>
+      <div class="panel sliders">
+        <div class="field"><label for="leftSlider">Left trim</label><input id="leftSlider" type="range" min="-1" max="1" step="0.01" value="0"></div>
+        <div class="field"><label for="rightSlider">Right trim</label><input id="rightSlider" type="range" min="-1" max="1" step="0.01" value="0"></div>
         <button id="applySliders">Apply Sliders</button>
       </div>
     </section>
@@ -91,6 +126,7 @@
     const el = (id) => document.getElementById(id);
     let holdTimer = null;
     let holdPayload = null;
+    let activeButton = null;
     async function api(path, body) {
       const options = body === undefined ? {} : { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) };
       const response = await fetch(path, options);
@@ -114,29 +150,62 @@
       el('log').textContent = state.log.join('\n');
       el('log').scrollTop = el('log').scrollHeight;
     }
-    async function stop() { clearInterval(holdTimer); holdTimer = null; holdPayload = null; render(await api('/api/stop', {})); }
-    async function sendTank(payload) { holdPayload = payload; render(await api('/api/tank', payload)); }
-    function startHold(payload) { sendTank(payload); holdTimer = setInterval(() => sendTank(holdPayload), 100); }
-    document.querySelectorAll('.pad button[data-left]').forEach((button) => {
+    function setActiveButton(button) {
+      if (activeButton && activeButton !== button) activeButton.classList.remove('is-active');
+      activeButton = button;
+      if (activeButton) activeButton.classList.add('is-active');
+    }
+    function clearActiveButton() {
+      if (activeButton) activeButton.classList.remove('is-active');
+      activeButton = null;
+    }
+    function updateDriveReadout(payload) {
+      if (!payload) {
+        el('leftValue').textContent = '0.00';
+        el('rightValue').textContent = '0.00';
+        return;
+      }
+      const limit = Number(el('speedLimit').value);
+      el('leftValue').textContent = (payload.left * limit).toFixed(2);
+      el('rightValue').textContent = (payload.right * limit).toFixed(2);
+    }
+    async function stop() {
+      clearInterval(holdTimer);
+      holdTimer = null;
+      holdPayload = null;
+      updateDriveReadout(null);
+      clearActiveButton();
+      render(await api('/api/stop', {}));
+    }
+    async function sendTank(payload) {
+      holdPayload = payload;
+      updateDriveReadout(payload);
+      render(await api('/api/tank', payload));
+    }
+    function startHold(payload, button) {
+      clearInterval(holdTimer);
+      setActiveButton(button);
+      sendTank(payload);
+      holdTimer = setInterval(() => sendTank(holdPayload), 100);
+    }
+    document.querySelectorAll('.drive-pad button[data-left]').forEach((button) => {
       const payload = { left:Number(button.dataset.left), right:Number(button.dataset.right) };
-      button.addEventListener('pointerdown', (event) => { event.preventDefault(); startHold(payload); });
-      button.addEventListener('pointerup', stop);
-      button.addEventListener('pointerleave', stop);
-      button.addEventListener('pointercancel', stop);
+      button.addEventListener('pointerdown', (event) => { event.preventDefault(); button.setPointerCapture?.(event.pointerId); startHold(payload, button); });
+      button.addEventListener('pointerup', (event) => { event.preventDefault(); stop(); });
+      button.addEventListener('pointercancel', (event) => { event.preventDefault(); stop(); });
     });
     document.querySelectorAll('.motor button').forEach((button) => {
       const payload = { motor:Number(button.dataset.motor), direction:Number(button.dataset.direction) };
-      button.addEventListener('pointerdown', async (event) => { event.preventDefault(); render(await api('/api/motor', payload)); holdTimer = setInterval(() => api('/api/motor', payload), 100); });
-      button.addEventListener('pointerup', stop);
-      button.addEventListener('pointerleave', stop);
-      button.addEventListener('pointercancel', stop);
+      button.addEventListener('pointerdown', async (event) => { event.preventDefault(); clearInterval(holdTimer); setActiveButton(button); render(await api('/api/motor', payload)); holdTimer = setInterval(() => api('/api/motor', payload), 100); });
+      button.addEventListener('pointerup', (event) => { event.preventDefault(); stop(); });
+      button.addEventListener('pointercancel', (event) => { event.preventDefault(); stop(); });
     });
     el('refreshPorts').onclick = refreshPorts;
     el('connect').onclick = async () => render(await api('/api/connect', {port: el('portSelect').value}));
     el('disconnect').onclick = async () => render(await api('/api/disconnect', {}));
     el('emergencyStop').onclick = stop;
     el('padStop').onclick = stop;
-    el('speedLimit').oninput = async () => { el('speedLimitValue').textContent = Number(el('speedLimit').value).toFixed(2); render(await api('/api/speed-limit', {value:Number(el('speedLimit').value)})); };
+    el('speedLimit').oninput = async () => { el('speedLimitValue').textContent = Number(el('speedLimit').value).toFixed(2); updateDriveReadout(holdPayload); render(await api('/api/speed-limit', {value:Number(el('speedLimit').value)})); };
     el('applySliders').onclick = async () => render(await api('/api/tank', {left:Number(el('leftSlider').value), right:Number(el('rightSlider').value)}));
     el('sendRaw').onclick = async () => { const command = el('rawCommand').value.trim(); if (command) render(await api('/api/raw', {command})); };
     document.addEventListener('keyup', (event) => { if (['w','s','a','d','ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','Escape'].includes(event.key)) stop(); });
@@ -144,8 +213,9 @@
       if (event.repeat) return;
       const map = { w:[1,1], ArrowUp:[1,1], s:[-1,-1], ArrowDown:[-1,-1], a:[-0.5,0.5], ArrowLeft:[-0.5,0.5], d:[0.5,-0.5], ArrowRight:[0.5,-0.5] };
       if (event.key === ' ' || event.key === 'Escape') { event.preventDefault(); stop(); }
-      if (map[event.key]) { event.preventDefault(); startHold({left:map[event.key][0], right:map[event.key][1]}); }
+      if (map[event.key]) { event.preventDefault(); startHold({left:map[event.key][0], right:map[event.key][1]}, null); }
     });
+    window.addEventListener('blur', () => { if (holdTimer) stop(); });
     async function poll() { try { render(await api('/api/state')); } catch (_) { el('connectionText').textContent = 'Web app offline'; } }
     refreshPorts(); poll(); setInterval(poll, 500);
   </script>
