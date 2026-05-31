@@ -27,6 +27,12 @@ def clamp(value: float, low: float, high: float) -> float:
     return max(low, min(high, value))
 
 
+def serial_port_sort_key(port: str) -> tuple[int, str]:
+    if "ttyACM" in port or "ttyUSB" in port:
+        return (0, port)
+    return (1, port)
+
+
 @dataclass
 class RobotState:
     connected: bool = False
@@ -161,7 +167,7 @@ def create_app(default_port: str, autoconnect: bool) -> Flask:
 
     @app.get("/api/ports")
     def api_ports():
-        ports = [port.device for port in list_ports.comports()]
+        ports = sorted({port.device for port in list_ports.comports()}, key=serial_port_sort_key)
         if default_port not in ports:
             ports.insert(0, default_port)
         return jsonify({"ports": ports})
