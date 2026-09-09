@@ -40,6 +40,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install ARM toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-arm-none-eabi libnewlib-arm-none-eabi ninja-build
+
       - name: Fetch Pico SDK
         uses: actions/checkout@v4
         with:
@@ -51,6 +56,7 @@ jobs:
       - name: Configure firmware
         run: >
           cmake
+          -G Ninja
           -S firmware/pico_motor_controller
           -B build/pico_motor_controller
           -DPICO_SDK_PATH=${{ github.workspace }}/pico-sdk
