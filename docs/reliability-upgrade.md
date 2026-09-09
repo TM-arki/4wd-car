@@ -42,7 +42,7 @@ This branch adds the safety and recovery layer needed before the robot is driven
 7. **CI**
    - Python syntax checks and pytest coverage for mapping, RPM conversion, USB discovery, protocol parsing and `/health`.
    - Shell syntax checks for boot/recovery scripts.
-   - Full Raspberry Pi Pico firmware build against Pico SDK 2.1.1.
+   - Full Raspberry Pi Pico firmware build against Pico SDK 2.1.1 and the ARM GCC toolchain.
 
 8. **RPM display**
    - The Pi converts the ZS-X11H speed-pulse totals to wheel RPM.
@@ -65,12 +65,29 @@ python -m pip install -r requirements.txt
 
 sudo cp systemd/robot-boot-update.service /etc/systemd/system/
 sudo cp systemd/robot-web-control.service /etc/systemd/system/
+```
+
+The service template deliberately still defaults to `main` for normal production use. While this PR is being hardware-tested, add a temporary systemd override so a reboot does not replace the test branch with `main`:
+
+```bash
+sudo mkdir -p /etc/systemd/system/robot-boot-update.service.d
+printf '[Service]\nEnvironment=ROBOT_GIT_BRANCH=reliability-upgrade\n' | sudo tee /etc/systemd/system/robot-boot-update.service.d/test-branch.conf
+
 sudo systemctl daemon-reload
 sudo systemctl enable robot-boot-update.service robot-web-control.service
 sudo systemctl restart robot-web-control.service
 ```
 
 The updated systemd files are important because they enable the health-confirmation/rollback flow and switch the serial setting to `auto`.
+
+After the PR has passed hardware testing and is merged to `main`, remove the temporary branch override:
+
+```bash
+sudo rm -f /etc/systemd/system/robot-boot-update.service.d/test-branch.conf
+sudo systemctl daemon-reload
+```
+
+From then on, the installed boot-update service follows `main` again.
 
 ## Test checklist before merging to main
 
@@ -82,7 +99,7 @@ The updated systemd files are important because they enable the health-confirmat
 6. Confirm RPM appears and is roughly consistent across all four wheels.
 7. Hold a low joystick command, then deliberately disconnect the USB cable to the Pico. Motion must stop within about 0.4 seconds.
 8. Reconnect USB. The UI should reconnect automatically and remain stopped.
-9. Reboot the Pi and confirm update status becomes `healthy`.
+9. Reboot the Pi and confirm it remains on `reliability-upgrade` during testing and update status becomes `healthy`.
 10. Only after these checks should `reliability-upgrade` be merged into `main`.
 
 ## State files
