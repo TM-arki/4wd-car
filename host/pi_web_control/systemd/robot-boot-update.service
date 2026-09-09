@@ -12,6 +12,8 @@ Environment=ROBOT_REPO_DIR=/home/pi/4wd-car
 Environment=ROBOT_GIT_BRANCH=main
 Environment=ROBOT_HOME_WIFI_CONNECTION=HomeWiFi
 Environment=ROBOT_HOTSPOT_CONNECTION=Hotspot
+Environment=ROBOT_ENABLE_ROLLBACK=1
+Environment=ROBOT_STATE_DIR=/home/pi/4wd-car/.robot_state
 ExecStart=/usr/bin/bash /home/pi/4wd-car/host/pi_web_control/scripts/boot_update.sh
 TimeoutStartSec=90
 RemainAfterExit=yes
