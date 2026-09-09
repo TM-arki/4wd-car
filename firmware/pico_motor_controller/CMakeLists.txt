@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.13)
 
 if(EXISTS ${CMAKE_CURRENT_LIST_DIR}/pico_sdk_import.cmake)
     include(${CMAKE_CURRENT_LIST_DIR}/pico_sdk_import.cmake)
+elseif(DEFINED PICO_SDK_PATH)
+    include(${PICO_SDK_PATH}/external/pico_sdk_import.cmake)
 elseif(DEFINED ENV{PICO_SDK_PATH})
     include($ENV{PICO_SDK_PATH}/external/pico_sdk_import.cmake)
 else()
