@@ -1,0 +1,20 @@
+[Unit]
+Description=Update 4WD robot code before starting web control
+After=NetworkManager.service
+Wants=NetworkManager.service
+Before=robot-web-control.service
+
+[Service]
+Type=oneshot
+User=pi
+WorkingDirectory=/home/pi/4wd-car
+Environment=ROBOT_REPO_DIR=/home/pi/4wd-car
+Environment=ROBOT_GIT_BRANCH=main
+Environment=ROBOT_HOME_WIFI_CONNECTION=HomeWiFi
+Environment=ROBOT_HOTSPOT_CONNECTION=Hotspot
+ExecStart=/usr/bin/bash /home/pi/4wd-car/host/pi_web_control/scripts/boot_update.sh
+TimeoutStartSec=90
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

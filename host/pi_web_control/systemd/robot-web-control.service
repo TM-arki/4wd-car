@@ -1,0 +1,16 @@
+[Unit]
+Description=4WD robot web control
+After=robot-boot-update.service
+Wants=robot-boot-update.service
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/4wd-car/host/pi_web_control
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/pi/4wd-car/host/pi_web_control/.venv/bin/python app.py --serial-port /dev/ttyACM0 --port 8080
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

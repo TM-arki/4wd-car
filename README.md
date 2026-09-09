@@ -15,6 +15,7 @@ The first goal is not a perfect robot stack. The first goal is a clean, safe, te
 .
 |-- docs/
 |   |-- architecture.md
+|   |-- raspberry-pi-web-control.md
 |   |-- startup-and-deployment.md
 |   `-- wiring.md
 |-- firmware/
@@ -25,6 +26,11 @@ The first goal is not a perfect robot stack. The first goal is a clean, safe, te
 |       `-- src/
 |           `-- main.cpp
 |-- host/
+|   |-- pi_web_control/
+|   |   |-- app.py
+|   |   |-- requirements.txt
+|   |   |-- systemd/
+|   |   `-- templates/
 |   `-- robot_control/
 |       |-- README.md
 |       |-- requirements.txt
@@ -109,6 +115,12 @@ python robot_control.py --port COM5 test
 ```
 
 Replace `COM5` with the Pico serial port shown on your development PC.
+
+## Raspberry Pi Web Control
+
+Raspberry Pi can run the robot without the PC GUI by connecting to the Pico over USB serial, hosting a Wi-Fi hotspot, and serving a browser control page.
+
+See [docs/raspberry-pi-web-control.md](docs/raspberry-pi-web-control.md).
 
 ## Safety Notes
 
