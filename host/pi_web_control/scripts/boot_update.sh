@@ -94,6 +94,11 @@ try_home_wifi() {
     return 1
   fi
 
+  if has_internet; then
+    log "internet is already available; keeping the active connection"
+    return 0
+  fi
+
   if ! connection_exists "$HOME_WIFI"; then
     log "home Wi-Fi connection '$HOME_WIFI' is not configured; skipping update network"
     return 1
