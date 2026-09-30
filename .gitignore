@@ -16,6 +16,9 @@ venv/
 env/
 .pytest_cache/
 
+# Robot runtime state
+.robot_state/
+
 # Editors and OS files
 .idea/
 .vscode/

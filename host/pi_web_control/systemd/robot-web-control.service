@@ -8,9 +8,14 @@ Type=simple
 User=pi
 WorkingDirectory=/home/pi/4wd-car/host/pi_web_control
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/home/pi/4wd-car/host/pi_web_control/.venv/bin/python app.py --serial-port /dev/ttyACM0 --port 8080
+Environment=ROBOT_REPO_DIR=/home/pi/4wd-car
+Environment=ROBOT_STATE_DIR=/home/pi/4wd-car/.robot_state
+ExecStart=/home/pi/4wd-car/host/pi_web_control/.venv/bin/python app.py --serial-port auto --port 8080
+ExecStartPost=/usr/bin/bash /home/pi/4wd-car/host/pi_web_control/scripts/confirm_release.sh
+ExecStop=-/usr/bin/curl -fsS -X POST -H Content-Type:application/json -d {} http://127.0.0.1:8080/api/stop
 Restart=on-failure
 RestartSec=2
+TimeoutStartSec=35
 
 [Install]
 WantedBy=multi-user.target

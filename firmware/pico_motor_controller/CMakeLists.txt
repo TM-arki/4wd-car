@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.13)
 
 if(EXISTS ${CMAKE_CURRENT_LIST_DIR}/pico_sdk_import.cmake)
     include(${CMAKE_CURRENT_LIST_DIR}/pico_sdk_import.cmake)
+elseif(DEFINED PICO_SDK_PATH)
+    include(${PICO_SDK_PATH}/external/pico_sdk_import.cmake)
 elseif(DEFINED ENV{PICO_SDK_PATH})
     include($ENV{PICO_SDK_PATH}/external/pico_sdk_import.cmake)
 else()
@@ -18,12 +20,17 @@ add_executable(pico_motor_controller
     src/main.cpp
 )
 
+pico_generate_pio_header(pico_motor_controller
+    ${CMAKE_CURRENT_LIST_DIR}/src/motor_pwm.pio
+)
+
 target_include_directories(pico_motor_controller PRIVATE
     include
 )
 
 target_link_libraries(pico_motor_controller
     pico_stdlib
+    hardware_pio
     hardware_pwm
 )
 
