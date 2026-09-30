@@ -99,13 +99,12 @@ try_home_wifi() {
     return 0
   fi
 
-  if ! connection_exists "$HOME_WIFI"; then
-    log "home Wi-Fi connection '$HOME_WIFI' is not configured; skipping update network"
-    return 1
+  if connection_exists "$HOME_WIFI"; then
+    log "connecting to home Wi-Fi profile '$HOME_WIFI'"
+    nmcli connection up "$HOME_WIFI" >/dev/null 2>&1 || true
+  else
+    log "home Wi-Fi connection '$HOME_WIFI' is not configured; waiting for the active network"
   fi
-
-  log "connecting to home Wi-Fi profile '$HOME_WIFI'"
-  nmcli connection up "$HOME_WIFI" >/dev/null 2>&1 || true
 
   local start
   start=$(date +%s)

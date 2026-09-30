@@ -1,7 +1,7 @@
 [Unit]
 Description=Update 4WD robot code before starting web control
-After=NetworkManager.service
-Wants=NetworkManager.service
+After=NetworkManager.service network-online.target
+Wants=NetworkManager.service network-online.target
 Before=robot-web-control.service
 
 [Service]
