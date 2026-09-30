@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pico Motor Drive</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <main class="app">
+    <section class="topbar">
+      <div>
+        <h1>Pico Motor Drive</h1>
+        <p id="connectionText">Disconnected</p>
+      </div>
+      <button class="stop" id="emergencyStop">STOP</button>
+    </section>
+
+    <section class="panel connection">
+      <label for="portSelect">USB port</label>
+      <select id="portSelect"></select>
+      <button id="refreshPorts">Refresh</button>
+      <button id="connect">Connect</button>
+      <button id="disconnect">Disconnect</button>
+    </section>
+
+    <section class="grid">
+      <div class="panel drive">
+        <div class="field">
+          <label for="speedLimit">Speed limit <span id="speedLimitValue">0.15</span></label>
+          <input id="speedLimit" type="range" min="0.03" max="{{ hard_limit }}" step="0.01" value="0.15">
+        </div>
+
+        <div class="pad">
+          <button data-left="1" data-right="1">Forward</button>
+          <button data-left="-0.5" data-right="0.5">Left</button>
+          <button class="stop small" id="padStop">STOP</button>
+          <button data-left="0.5" data-right="-0.5">Right</button>
+          <button data-left="-1" data-right="-1">Reverse</button>
+        </div>
+      </div>
+
+      <div class="panel sliders">
+        <div class="field">
+          <label for="leftSlider">Left</label>
+          <input id="leftSlider" type="range" min="-1" max="1" step="0.01" value="0">
+        </div>
+        <div class="field">
+          <label for="rightSlider">Right</label>
+          <input id="rightSlider" type="range" min="-1" max="1" step="0.01" value="0">
+        </div>
+        <button id="applySliders">Apply Sliders</button>
+      </div>
+    </section>
+
+    <section class="panel motors">
+      {% for motor in motors %}
+      <div class="motor">
+        <strong>{{ motor.name }}</strong>
+        <button data-motor="{{ loop.index }}" data-direction="1">Fwd</button>
+        <button data-motor="{{ loop.index }}" data-direction="-1">Rev</button>
+      </div>
+      {% endfor %}
+    </section>
+
+    <section class="panel meters">
+      <div class="meter-header">
+        <span>Wheel</span>
+        <span>Speed pulses/s</span>
+        <span>Applied</span>
+        <span>Total</span>
+      </div>
+      {% for motor in motors %}
+      <div class="meter-row">
+        <span>{{ motor.name }}</span>
+        <progress id="pulseBar{{ loop.index0 }}" max="50" value="0"></progress>
+        <span id="applied{{ loop.index0 }}">0.000</span>
+        <span id="total{{ loop.index0 }}">0</span>
+      </div>
+      {% endfor %}
+    </section>
+
+    <section class="panel raw">
+      <input id="rawCommand" type="text" placeholder="Raw command">
+      <button id="sendRaw">Send Raw</button>
+      <pre id="log"></pre>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
