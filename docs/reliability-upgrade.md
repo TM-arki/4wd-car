@@ -6,7 +6,7 @@ This branch adds the safety and recovery layer needed before the robot is driven
 
 1. **Pico command watchdog**
    - Any `MOTOR`, `DRIVE`, `FORWARD`, or `REVERSE` command that produces motion must be renewed within 400 ms.
-   - If commands stop arriving, the Pico sets every PWM output to zero and activates STOP/BRAKE.
+   - If commands stop arriving, the Pico sets every PWM output to zero and activates all four brake outputs.
    - This is independent of the Raspberry Pi and protects against a crashed host process or broken USB link.
 
 2. **Automatic Pico USB discovery and reconnect**

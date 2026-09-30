@@ -1,6 +1,6 @@
 # Wiring
 
-This document describes the first proposed Pico pin map. Treat it as a starting point until the real wiring and ZS-X11H signal requirements are confirmed.
+This document records the pin map confirmed during the May 2026 hardware tests.
 
 ## Important Electrical Checks
 
@@ -14,28 +14,27 @@ Before connecting the Pico to the motor controllers:
 
 The Pico GPIO pins are 3.3 V only.
 
-## Proposed Pin Map
+## Confirmed Pin Map
 
 The preferred layout keeps PWM and speed pins next to each other where possible.
 
-| Motor | Position | PWM pin | Speed input | Direction pin | Brake pin | Stop pin |
-| --- | --- | --- | --- | --- | --- | --- |
-| 1 | Front left | GP2 | GP3 | GP10 | GP14 | GP15 |
-| 2 | Front right | GP4 | GP5 | GP11 | GP14 | GP15 |
-| 3 | Rear left | GP6 | GP7 | GP12 | GP14 | GP15 |
-| 4 | Rear right | GP18 | GP19 | GP13 | GP14 | GP15 |
+| Motor | Position | PWM pin | Speed input | Direction pin | Brake pin |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Right rear | GP2 | GP3 | GP4 | GP5 |
+| 2 | Left rear | GP6 | GP7 | GP8 | GP9 |
+| 3 | Left front | GP10 | GP11 | GP12 | GP13 |
+| 4 | Right front | GP18 | GP19 | GP20 | GP21 |
 
 Notes:
 
-- Brake and stop are shared in this first version.
-- GP18/GP19 are used for motor 4 because the fourth controller may need to start around GP18 due to board layout.
-- Direction pins are separate from PWM pins for clarity.
+- Each motor controller has its own brake pin.
+- No shared STOP GPIO is connected in this wiring.
+- GP2 and GP18 share the same RP2040 hardware-PWM slice/channel. Motor 4 therefore uses PIO PWM on GP18; changing it back to ordinary hardware PWM makes motors 1 and 4 mirror each other.
+- Positive drive commands are inverted for motors 2 and 3 in firmware so all four physical wheels agree on forward direction.
 
 TODO:
 
-- Confirm if each ZS-X11H needs separate brake and stop pins.
-- Confirm brake and stop active polarity.
-- Confirm direction active polarity.
+- Confirm brake active polarity if the motor-controller model or wiring changes.
 - Confirm whether speed inputs need pull-ups, pull-downs, filtering, or level shifting.
 
 ## Power Wiring
@@ -60,11 +59,9 @@ Recommended bring-up sequence:
 Suggested signal names for labels:
 
 ```text
-M1_PWM, M1_SPEED, M1_DIR
-M2_PWM, M2_SPEED, M2_DIR
-M3_PWM, M3_SPEED, M3_DIR
-M4_PWM, M4_SPEED, M4_DIR
-MOTOR_BRAKE
-MOTOR_STOP
+M1_PWM, M1_SPEED, M1_DIR, M1_BRAKE
+M2_PWM, M2_SPEED, M2_DIR, M2_BRAKE
+M3_PWM, M3_SPEED, M3_DIR, M3_BRAKE
+M4_PWM, M4_SPEED, M4_DIR, M4_BRAKE
 GND
 ```

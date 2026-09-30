@@ -68,3 +68,10 @@ jobs:
         run: |
           grep -q "COMMAND_WATCHDOG_MS = 400" firmware/pico_motor_controller/src/main.cpp
           grep -q "enforce_motion_watchdog" firmware/pico_motor_controller/src/main.cpp
+
+      - name: Verify the confirmed motor map and GP18 PIO workaround
+        run: |
+          grep -q "{2, 3, 4, 5, false}" firmware/pico_motor_controller/include/motor_config.h
+          grep -q "{18, 19, 20, 21, false}" firmware/pico_motor_controller/include/motor_config.h
+          grep -q "PIO_PWM_MOTOR_INDEX = 3" firmware/pico_motor_controller/include/motor_config.h
+          grep -q "pico_generate_pio_header" firmware/pico_motor_controller/CMakeLists.txt

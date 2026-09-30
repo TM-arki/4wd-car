@@ -20,12 +20,17 @@ add_executable(pico_motor_controller
     src/main.cpp
 )
 
+pico_generate_pio_header(pico_motor_controller
+    ${CMAKE_CURRENT_LIST_DIR}/src/motor_pwm.pio
+)
+
 target_include_directories(pico_motor_controller PRIVATE
     include
 )
 
 target_link_libraries(pico_motor_controller
     pico_stdlib
+    hardware_pio
     hardware_pwm
 )
 

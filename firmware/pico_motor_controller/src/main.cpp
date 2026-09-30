@@ -5,12 +5,18 @@
 #include <string.h>
 
 #include "hardware/clocks.h"
+#include "hardware/pio.h"
 #include "hardware/pwm.h"
 #include "motor_config.h"
+#include "motor_pwm.pio.h"
 #include "pico/stdlib.h"
 
-static constexpr char FIRMWARE_VERSION[] = "2026.09-reliability";
+static constexpr char FIRMWARE_VERSION[] = "2026.09-reliability-pio";
 static constexpr uint32_t COMMAND_WATCHDOG_MS = 400;
+static PIO const MOTOR_PWM_PIO = pio0;
+static constexpr uint MOTOR_PWM_SM = 0;
+
+static uint motor_pwm_offset = 0;
 
 static float motor_power[MOTOR_COUNT] = {0.0f, 0.0f, 0.0f, 0.0f};
 static volatile uint32_t speed_pulses[MOTOR_COUNT] = {0, 0, 0, 0};
@@ -42,11 +48,22 @@ static void speed_input_callback(uint gpio, uint32_t events) {
 }
 
 static void set_brake(bool enabled) {
-    gpio_put(BRAKE_PIN, enabled ? BRAKE_ACTIVE_LEVEL : !BRAKE_ACTIVE_LEVEL);
+    for (uint8_t i = 0; i < MOTOR_COUNT; ++i) {
+        gpio_put(MOTOR_PINS[i].brake, enabled ? BRAKE_ACTIVE_LEVEL : !BRAKE_ACTIVE_LEVEL);
+    }
 }
 
 static void set_controller_stop(bool enabled) {
-    gpio_put(STOP_PIN, enabled ? STOP_ACTIVE_LEVEL : !STOP_ACTIVE_LEVEL);
+    // The confirmed wiring has one brake input per controller and no shared
+    // STOP GPIO. Keep the command-level abstraction for the watchdog path.
+    (void)enabled;
+}
+
+static void set_pio_pwm_level(uint16_t level) {
+    // The reference PIO program produces a one-counter pulse for level 0.
+    // A value above the period never matches Y and therefore stays truly low.
+    const uint32_t encoded_level = (level == 0) ? (PWM_WRAP + 1u) : (level - 1u);
+    pio_sm_put_blocking(MOTOR_PWM_PIO, MOTOR_PWM_SM, encoded_level);
 }
 
 static void set_motor(uint8_t index, float power) {
@@ -58,12 +75,19 @@ static void set_motor(uint8_t index, float power) {
     motor_power[index] = power;
 
     const MotorPins pins = MOTOR_PINS[index];
-    const bool forward = power >= 0.0f;
+    bool forward = power >= 0.0f;
+    if (pins.invert_direction) {
+        forward = !forward;
+    }
     const float magnitude = fabsf(power);
     const uint16_t level = static_cast<uint16_t>(magnitude * PWM_WRAP);
 
     gpio_put(pins.direction, forward ? DIRECTION_FORWARD_LEVEL : !DIRECTION_FORWARD_LEVEL);
-    pwm_set_gpio_level(pins.pwm, level);
+    if (index == PIO_PWM_MOTOR_INDEX) {
+        set_pio_pwm_level(level);
+    } else {
+        pwm_set_gpio_level(pins.pwm, level);
+    }
 }
 
 static void disarm_motion_watchdog(void) {
@@ -115,9 +139,31 @@ static void init_pwm_pin(uint8_t gpio) {
     pwm_set_gpio_level(gpio, 0);
 }
 
+static void init_pio_pwm_pin(uint8_t gpio) {
+    motor_pwm_offset = pio_add_program(MOTOR_PWM_PIO, &motor_pwm_program);
+
+    // The PIO loop uses three instructions per counter step plus three setup
+    // instructions per period. Choose a divider that produces about 1 kHz.
+    const float cycles_per_period = static_cast<float>((PWM_WRAP + 1) * 3 + 3);
+    const float divider = static_cast<float>(clock_get_hz(clk_sys)) /
+                          (static_cast<float>(PWM_FREQUENCY_HZ) * cycles_per_period);
+    motor_pwm_program_init(MOTOR_PWM_PIO, MOTOR_PWM_SM, motor_pwm_offset, gpio, divider);
+
+    pio_sm_set_enabled(MOTOR_PWM_PIO, MOTOR_PWM_SM, false);
+    pio_sm_put_blocking(MOTOR_PWM_PIO, MOTOR_PWM_SM, PWM_WRAP);
+    pio_sm_exec(MOTOR_PWM_PIO, MOTOR_PWM_SM, pio_encode_pull(false, false));
+    pio_sm_exec(MOTOR_PWM_PIO, MOTOR_PWM_SM, pio_encode_out(pio_isr, 32));
+    set_pio_pwm_level(0);
+    pio_sm_set_enabled(MOTOR_PWM_PIO, MOTOR_PWM_SM, true);
+}
+
 static void init_hardware(void) {
     for (uint8_t i = 0; i < MOTOR_COUNT; ++i) {
-        init_pwm_pin(MOTOR_PINS[i].pwm);
+        if (i == PIO_PWM_MOTOR_INDEX) {
+            init_pio_pwm_pin(MOTOR_PINS[i].pwm);
+        } else {
+            init_pwm_pin(MOTOR_PINS[i].pwm);
+        }
 
         gpio_init(MOTOR_PINS[i].direction);
         gpio_set_dir(MOTOR_PINS[i].direction, GPIO_OUT);
@@ -126,13 +172,11 @@ static void init_hardware(void) {
         gpio_init(MOTOR_PINS[i].speed);
         gpio_set_dir(MOTOR_PINS[i].speed, GPIO_IN);
         gpio_pull_down(MOTOR_PINS[i].speed);
+
+        gpio_init(MOTOR_PINS[i].brake);
+        gpio_set_dir(MOTOR_PINS[i].brake, GPIO_OUT);
+        gpio_put(MOTOR_PINS[i].brake, BRAKE_ACTIVE_LEVEL);
     }
-
-    gpio_init(BRAKE_PIN);
-    gpio_set_dir(BRAKE_PIN, GPIO_OUT);
-
-    gpio_init(STOP_PIN);
-    gpio_set_dir(STOP_PIN, GPIO_OUT);
 
     stop_all_motors();
 

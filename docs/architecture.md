@@ -11,7 +11,7 @@ Development PC / Raspberry Pi / NVIDIA board
         v
 Raspberry Pi Pico / RP2040
         |
-        | PWM, direction, brake, stop, speed inputs
+        | PWM, direction, individual brake, speed inputs
         v
 4x ZS-X11H motor controllers
         |
@@ -26,7 +26,7 @@ The Pico is responsible for low-level behavior that should stay simple and relia
 - Keep motors stopped during startup.
 - Generate PWM signals for four motor controllers.
 - Set direction pins for forward and reverse commands.
-- Optionally control brake and stop pins.
+- Control each motor controller's brake pin. The confirmed harness has no shared STOP GPIO.
 - Read speed feedback pins.
 - Accept simple USB serial commands from a host computer.
 - Provide status information for debugging.
@@ -85,13 +85,13 @@ TODO:
 
 ## Motor Numbering
 
-Initial motor numbering:
+Confirmed motor numbering:
 
 ```text
-Motor 1: front left
-Motor 2: front right
-Motor 3: rear left
-Motor 4: rear right
+Motor 1: right rear
+Motor 2: left rear
+Motor 3: left front
+Motor 4: right front
 ```
 
-TODO: Confirm physical motor numbering before final wiring labels are printed.
+This numbering was confirmed during the May 2026 hardware tests.

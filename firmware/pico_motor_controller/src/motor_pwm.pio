@@ -1,0 +1,31 @@
+; PIO PWM for motor 4. GP18 shares the same RP2040 hardware-PWM
+; slice/channel as motor 1 on GP2, so it must not use hardware_pwm.
+;
+; Based on Raspberry Pi's BSD-3-Clause pico-examples PIO PWM program.
+
+.pio_version 0
+.program motor_pwm
+.side_set 1 opt
+
+pull noblock side 0
+mov x, osr
+mov y, isr
+countloop:
+    jmp x!=y noset
+    jmp skip side 1
+noset:
+    nop
+skip:
+    jmp y-- countloop
+
+% c-sdk {
+static inline void motor_pwm_program_init(PIO pio, uint sm, uint offset, uint pin, float clkdiv) {
+    pio_gpio_init(pio, pin);
+    pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, true);
+
+    pio_sm_config config = motor_pwm_program_get_default_config(offset);
+    sm_config_set_sideset_pins(&config, pin);
+    sm_config_set_clkdiv(&config, clkdiv);
+    pio_sm_init(pio, sm, offset, &config);
+}
+%}
